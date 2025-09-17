@@ -1,69 +1,62 @@
-# React + TypeScript + Vite
+# Equinox Notes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Equinox Notes is a September-inspired, local-first notebook that pairs a cozy writing experience with seasonal weather cues. The frontend blends React, Tailwind, and Framer Motion for the falling-leaves ambiance, while an Express edge service issues stateless JWTs for lightweight authentication.
 
-Currently, two official plugins are available:
+## Screenshots
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+_Coming soon — once the foliage settles in, drop screenshots here to capture the warm and chilly themes._
 
-## Expanding the ESLint configuration
+## Quick start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# install workspace dependencies
+npm install
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# launch both the server (5174) and client (5173)
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Available scripts
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Location | Command | Description |
+| --- | --- | --- |
+| root | `npm run dev` | Runs server & client concurrently. |
+| server | `npm run dev` | Starts Express with `tsx watch`. |
+| server | `npm run build` | Compiles TypeScript to `dist`. |
+| server | `npm start` | Runs the compiled server. |
+| client | `npm run dev` | Starts Vite + React dev server. |
+| client | `npm run build` | Builds the client bundle. |
+| client | `npm run test` | Executes Vitest unit tests. |
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Environment variables
+
+Create `server/.env` (or copy `server/.env.example`) and adjust as needed:
+
+```bash
+PORT=5174
+JWT_SECRET="dev-secret-change-me"
+CLIENT_ORIGIN="http://localhost:5173"
 ```
+
+The client proxies `/auth/*` requests to `http://localhost:5174`, so no additional configuration is required for local development.
+
+## Architecture overview
+
+- **Server** (`/server`): TypeScript + Express, with Helmet, CORS, Morgan, and Zod validation. It exposes `/auth/register`, `/auth/login`, and `/auth/me`, returning stateless JWTs with a 7-day expiration. User IDs are derived deterministically from the username, and no data is persisted on the backend.
+- **Client** (`/client`): React (Vite) with Tailwind for theming, Framer Motion for the leaf animations, and Zustand for auth state. Notes are stored per-user in `localStorage` (`equinox:data:<userId>:notes`) to honor the local-first requirement. Open-Meteo powers the weather panel, which influences the warm vs. chilly gradient.
+- **State & persistence**: Auth tokens live in both memory (Zustand) and `localStorage` (`equinox:auth`). Notes CRUD happens entirely on the client, with debounced persistence through a custom `useLocalStore` hook.
+
+## How authentication works
+
+The server issues signed JWTs (`HS256`) with the payload `{ sub, username, aud: "equinox", iss: "equinox-server" }`. Registration and login only validate the input and return a token plus the computed user identity; they do not create records. The client stores the token locally and calls `/auth/me` on boot to verify it. Since everything is device-scoped, deleting `localStorage` resets the experience.
+
+## Copilot usage
+
+GitHub Copilot was used sparingly to scaffold repetitive TypeScript typings and Tailwind utility combinations. All security-sensitive logic (JWT shaping, validation, storage interactions) and the overall architecture were implemented and reviewed manually to match the prompt requirements.
+
+## What I learned
+
+- How to wire a local-first UX where the backend only handles authentication while the client owns persistence.
+- Techniques for respecting accessibility preferences, such as disabling animations when `prefers-reduced-motion` is enabled.
+- Managing shared theme state derived from external APIs (Open-Meteo) and reflecting it across layout, animations, and tone.
+- Structuring a Vite/React monorepo with shared tooling (Vitest, Tailwind) while keeping server and client concerns cleanly separated.

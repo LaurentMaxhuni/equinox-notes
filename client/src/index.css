@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  @apply m-0 min-h-screen bg-black text-stone-100 antialiased;
+}
+
+body.warm-gradient {
+  @apply bg-gradient-to-b from-amber-900 via-stone-900 to-stone-950;
+}
+
+body.chilly-gradient {
+  @apply bg-gradient-to-b from-slate-950 via-slate-900 to-stone-950;
+}
+
+button, input, textarea {
+  @apply focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400/70;
+}
+
+a {
+  @apply text-amber-200 underline-offset-4 transition hover:underline;
+}

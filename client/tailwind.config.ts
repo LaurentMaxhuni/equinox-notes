@@ -1,8 +1,9 @@
+
 import lineClamp from '@tailwindcss/line-clamp';
 import typography from '@tailwindcss/typography';
 import type { Config } from 'tailwindcss';
 
-export default {
+const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -24,4 +25,7 @@ export default {
     },
   },
   plugins: [typography, lineClamp],
-} satisfies Config;
+};
+
+export default config;
+

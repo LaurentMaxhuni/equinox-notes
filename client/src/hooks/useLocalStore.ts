@@ -12,6 +12,7 @@ export function useLocalStore<T>(key: string, initial: InitialValue<T>) {
   });
 
   const previousKey = useRef(key);
+
   const debounceRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -24,10 +25,10 @@ export function useLocalStore<T>(key: string, initial: InitialValue<T>) {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
+
     if (typeof debounceRef.current === 'number') {
       window.clearTimeout(debounceRef.current);
     }
-
     debounceRef.current = window.setTimeout(() => {
       try {
         window.localStorage.setItem(key, JSON.stringify(state));

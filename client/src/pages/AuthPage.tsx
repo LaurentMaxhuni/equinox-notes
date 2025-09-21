@@ -1,3 +1,4 @@
+
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { z } from 'zod';
@@ -24,21 +25,24 @@ type AuthPageProps = {
   onPartOfDayChange: (part: PartOfDay) => void;
 };
 
+type Mode = "login" | "register";
+
+type FormErrors = Partial<Record<keyof z.infer<typeof credentialsSchema>, string>>;
+
 export function AuthPage({ onMoodChange, onPartOfDayChange }: AuthPageProps) {
   const login = useAuthStore((state) => state.login);
-  const [mode, setMode] = useState<Mode>('login');
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [mode, setMode] = useState<Mode>("login");
+  const [form, setForm] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const heading = useMemo(() => (mode === 'login' ? 'Welcome back' : 'Create your Equinox identity'), [mode]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleMode = () => {
-    setMode((prev) => (prev === 'login' ? 'register' : 'login'));
+    setMode((prev) => (prev === "login" ? "register" : "login"));
     setErrors({});
     setServerError(null);
   };
+
 
   const mapError = (error: z.ZodError) => {
     const fieldErrors: FormErrors = {};

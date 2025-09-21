@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { useMemo } from 'react';
-import type { Mood } from '../types';
+type Mood = 'warm' | 'chilly';
 
 type FallingLeavesProps = {
   mood: Mood;
@@ -29,8 +29,12 @@ const generateLeaves = (count: number): LeafConfig[] =>
   }));
 
 const LeafSvg = ({ color }: { color: string }) => (
-  <svg viewBox="0 0 64 64" className="h-10 w-10 drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)]" aria-hidden>
-    <path d="M32 2c7 6 12 11 15 17 6 11 4 23-5 32s-21 11-32 5C4 53 0 42 2 32 4 20 15 8 32 2Z" fill={color} />
+  <svg viewBox="0 0 64 64" className="h-full w-full" aria-hidden>
+    <path
+      d="M32 2c7 6 12 11 15 17 6 11 4 23-5 32s-21 11-32 5C4 53 0 42 2 32 4 20 15 8 32 2Z"
+      fill={color}
+      className="drop-shadow-[0_12px_20px_rgba(0,0,0,0.25)]"
+    />
   </svg>
 );
 

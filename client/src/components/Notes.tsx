@@ -1,3 +1,4 @@
+
 import ReactMarkdown from 'react-markdown';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useLocalStore } from '../hooks/useLocalStore';
@@ -59,7 +60,7 @@ export default function Notes({ userId }: NotesProps) {
     setSelectedId(note.id);
     setMode('edit');
     setTimeout(() => bodyRef.current?.focus(), 0);
-  }, [setNotes]);
+  }, [setNotes, setSelectedId, setMode, bodyRef]);
 
   const handleDelete = (id: string) => {
     setNotes((prev) => prev.filter((note) => note.id !== id));
@@ -158,6 +159,11 @@ export default function Notes({ userId }: NotesProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(260px,320px)_1fr] lg:gap-8">
       <aside className="glass-card flex flex-col gap-4 px-4 py-5 sm:px-5">
+  }, [handleCreate]);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
+      <aside className="flex flex-col gap-4 rounded-2xl bg-stone-900/60 p-4 ring-1 ring-stone-700/60">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <input
@@ -166,23 +172,27 @@ export default function Notes({ userId }: NotesProps) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search notes (/)"
-              className="surface-input pr-10 text-sm"
+              className="w-full rounded-xl border border-stone-700/60 bg-stone-950/70 px-3 py-2 text-sm text-stone-100 placeholder:text-stone-500 focus:border-amber-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute inset-y-0 right-2 my-auto rounded-lg bg-stone-800/80 px-2 text-xs text-stone-300"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-stone-400 hover:text-amber-200"
               >
                 Clear
               </button>
             )}
           </div>
-          <button type="button" onClick={handleCreate} className="surface-button px-4 py-2 text-sm">
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="rounded-xl bg-amber-500/80 px-3 py-2 text-sm font-semibold text-stone-950 shadow hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+          >
+
             New
           </button>
         </div>
-
         <nav className="max-h-[50vh] overflow-y-auto pr-1">
           {filteredNotes.length === 0 ? (
             <p className="rounded-xl bg-stone-950/40 px-3 py-8 text-center text-sm text-stone-400">
@@ -221,38 +231,40 @@ export default function Notes({ userId }: NotesProps) {
             </ul>
           )}
         </nav>
-
-        <div className="flex flex-wrap items-center gap-2 text-sm text-stone-300">
-          <button type="button" onClick={handleExport} className="surface-button secondary flex-1 justify-center">
+        <div className="mt-auto flex flex-wrap gap-2 text-xs text-stone-400">
+          <button
+            type="button"
+            onClick={() => alert('Export coming soon!')}
+            className="rounded-full border border-stone-700/60 px-3 py-1 hover:border-amber-300 hover:text-amber-200"
+          >
             Export JSON
           </button>
-          <button type="button" onClick={handleImportClick} className="surface-button secondary flex-1 justify-center">
+          <button
+            type="button"
+            onClick={() => alert('Import coming soon!')}
+            className="rounded-full border border-stone-700/60 px-3 py-1 hover:border-amber-300 hover:text-amber-200"
+          >
             Import JSON
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={handleImportFile}
-          />
         </div>
       </aside>
 
-      <section className="glass-card flex min-h-[420px] flex-1 flex-col overflow-hidden px-5 py-6">
+      <section className="flex h-full flex-col gap-4 rounded-2xl bg-stone-900/60 p-6 ring-1 ring-stone-700/60">
         {selectedNote ? (
           <>
-            <div className="flex flex-col gap-3 border-b border-stone-700/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <input
                 type="text"
                 value={selectedNote.title}
                 onChange={(event) => updateNote({ title: event.target.value })}
-                className="surface-input text-lg font-medium"
+                className="w-full rounded-xl border border-stone-700/60 bg-stone-950/70 px-4 py-2 text-lg font-semibold text-stone-100 focus:border-amber-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+
                 placeholder="Title"
               />
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+
                   onClick={() => setMode('edit')}
                   className={`surface-button secondary px-3 py-2 text-sm ${mode === 'edit' ? 'ring-amber-400/80' : ''}`}
                 >
@@ -270,28 +282,37 @@ export default function Notes({ userId }: NotesProps) {
                 </button>
               </div>
             </div>
-
             {mode === 'edit' ? (
               <textarea
                 ref={bodyRef}
                 value={selectedNote.body}
                 onChange={(event) => updateNote({ body: event.target.value })}
-                className="mt-4 h-full min-h-[280px] flex-1 resize-none rounded-2xl border border-stone-800/60 bg-stone-950/50 p-4 text-base leading-relaxed text-stone-100 shadow-inner focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
-                placeholder="Write something memorable..."
+                className="min-h-[360px] flex-1 rounded-2xl border border-stone-700/60 bg-stone-950/70 px-4 py-3 text-sm leading-relaxed text-stone-100 focus:border-amber-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                placeholder="Capture the season's whispers..."
               />
             ) : (
-              <div className="markdown-preview prose prose-invert mt-4 flex-1 overflow-y-auto rounded-2xl bg-stone-950/40 p-4">
-                {selectedNote.body ? (
-                  <ReactMarkdown>{selectedNote.body}</ReactMarkdown>
-                ) : (
-                  <p className="text-sm text-stone-400">Nothing here yet. Add a few thoughts in edit mode.</p>
-                )}
+              <div className="min-h-[360px] flex-1 rounded-2xl border border-stone-700/60 bg-stone-950/70 px-4 py-3 text-sm leading-relaxed text-stone-100">
+                <p className="mb-3 text-xs uppercase tracking-wide text-stone-400">Markdown preview is brewing ☕️</p>
+                <pre className="whitespace-pre-wrap text-sm text-stone-200">{selectedNote.body || 'Nothing written yet.'}</pre>
               </div>
             )}
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-800/60 pt-3 text-xs text-stone-400">
+              <span>Last updated {formatTimestamp(selectedNote.ts)}</span>
+              <span>
+                Tips: <kbd className="rounded bg-stone-800 px-1">Ctrl</kbd> + <kbd className="rounded bg-stone-800 px-1">S</kbd> saves automatically.
+              </span>
+            </footer>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-stone-400">
-            Select or create a note to begin.
+          <div className="flex flex-1 flex-col items-center justify-center text-center text-stone-400">
+            <p className="text-lg font-medium">Start a new note to capture the season.</p>
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="mt-4 rounded-full bg-amber-500/80 px-4 py-2 text-sm font-semibold text-stone-950 shadow hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+            >
+              Create your first note
+            </button>
           </div>
         )}
       </section>

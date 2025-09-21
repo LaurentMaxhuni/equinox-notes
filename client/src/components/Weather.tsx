@@ -1,6 +1,8 @@
+
 import { useEffect, useState } from 'react';
 import type { Mood, PartOfDay } from '../types';
 import { dateToPartOfDay, temperatureToMood, type WeatherSnapshot } from '../utils/weather';
+
 
 type WeatherProps = {
   mood: Mood;
@@ -47,6 +49,7 @@ export default function Weather({ mood, onMoodChange, onPartOfDayChange }: Weath
         const data = await response.json();
         const tempC = Number(data?.current_weather?.temperature ?? data?.current_weather?.temperature_2m ?? 0);
         const part = dateToPartOfDay(new Date());
+
         const nextMood = temperatureToMood(tempC);
         const snapshot: WeatherSnapshot = {
           tempC,

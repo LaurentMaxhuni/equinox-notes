@@ -12,6 +12,7 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
 
 const app = express();
 
+
 app.use(helmet());
 app.use(
   cors({

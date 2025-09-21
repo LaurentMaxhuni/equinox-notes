@@ -8,6 +8,7 @@ export type User = {
   username: string;
 };
 
+
 export type StoredAuth = {
   user: User;
   token: string;
@@ -34,7 +35,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (get().hydrated) {
       return;
     }
-
     if (typeof window === 'undefined') {
       set({ hydrated: true });
       return;
@@ -77,3 +77,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, token: null, hydrated: true });
   },
 }));
+
+export type { StoredAuth, User };

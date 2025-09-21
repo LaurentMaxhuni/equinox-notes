@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clsx } from 'clsx';
+
+import ReactMarkdown from 'react-markdown';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useLocalStore } from '../hooks/useLocalStore';
 import type { Note } from '../types';
 import { formatTimestamp } from '../utils/time';
@@ -27,6 +28,7 @@ export default function Notes({ userId }: NotesProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!selectedId && notes.length > 0) {
@@ -37,7 +39,7 @@ export default function Notes({ userId }: NotesProps) {
   const sortedNotes = useMemo(() => sortNotes(notes), [notes]);
 
   const filteredNotes = useMemo(() => {
-    if (!search) {
+    if (!search.trim()) {
       return sortedNotes;
     }
     const query = search.toLowerCase();
@@ -83,6 +85,13 @@ export default function Notes({ userId }: NotesProps) {
     );
   };
 
+  const touchSelectedNote = useCallback(() => {
+    if (!selectedNote) return;
+    setNotes((prev) =>
+      prev.map((note) => (note.id === selectedNote.id ? { ...note, ts: Date.now() } : note)),
+    );
+  }, [selectedNote, setNotes]);
+
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
@@ -91,6 +100,7 @@ export default function Notes({ userId }: NotesProps) {
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
+        touchSelectedNote();
       }
       if (!event.metaKey && !event.ctrlKey && !event.altKey && event.key === '/') {
         event.preventDefault();
@@ -100,6 +110,55 @@ export default function Notes({ userId }: NotesProps) {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
+  }, [handleCreate, touchSelectedNote]);
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `equinox-notes-${userId}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Invalid format');
+      }
+      const normalized: Note[] = parsed
+        .map((note) => ({
+          id: typeof note.id === 'string' ? note.id : crypto.randomUUID(),
+          title: typeof note.title === 'string' ? note.title : 'Imported note',
+          body: typeof note.body === 'string' ? note.body : '',
+          ts: typeof note.ts === 'number' ? note.ts : Date.now(),
+        }))
+        .filter(Boolean);
+      setNotes(normalized);
+      setSelectedId(normalized[0]?.id ?? null);
+    } catch (error) {
+      console.warn('Failed to import notes', error);
+      window.alert('Could not import notes. Please ensure the file is a valid Equinox Notes export.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(260px,320px)_1fr] lg:gap-8">
+      <aside className="glass-card flex flex-col gap-4 px-4 py-5 sm:px-5">
   }, [handleCreate]);
 
   return (
@@ -130,43 +189,48 @@ export default function Notes({ userId }: NotesProps) {
             onClick={handleCreate}
             className="rounded-xl bg-amber-500/80 px-3 py-2 text-sm font-semibold text-stone-950 shadow hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
           >
+
             New
           </button>
         </div>
-
-        <nav className="flex-1 overflow-y-auto pr-1">
+        <nav className="max-h-[50vh] overflow-y-auto pr-1">
           {filteredNotes.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-stone-700/60 p-4 text-center text-sm text-stone-400">
-              No notes yet. Press <kbd className="rounded bg-stone-800 px-1">Ctrl</kbd> + <kbd className="rounded bg-stone-800 px-1">N</kbd> to start.
+            <p className="rounded-xl bg-stone-950/40 px-3 py-8 text-center text-sm text-stone-400">
+              No notes yet. Press <kbd className="rounded bg-stone-800 px-1 text-xs">Ctrl</kbd> +
+              <kbd className="ml-1 rounded bg-stone-800 px-1 text-xs">N</kbd> to begin.
             </p>
           ) : (
             <ul className="space-y-2">
-              {filteredNotes.map((note) => (
-                <li key={note.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(note.id)}
-                    className={clsx(
-                      'group flex w-full flex-col rounded-xl border border-stone-800/70 bg-stone-950/40 px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400/70',
-                      selectedId === note.id && 'border-amber-400/70 bg-stone-900/80 shadow-lg shadow-amber-500/10',
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-amber-100 group-hover:text-amber-200">
-                        {note.title || 'Untitled'}
-                      </span>
-                      <time className="shrink-0 text-[11px] uppercase tracking-wide text-stone-500">
-                        {formatTimestamp(note.ts)}
-                      </time>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs text-stone-400">{note.body || 'Empty note'}</p>
-                  </button>
-                </li>
-              ))}
+              {filteredNotes.map((note) => {
+                const isActive = selectedNote?.id === note.id;
+                return (
+                  <li key={note.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(note.id)}
+                      className={`w-full rounded-xl px-3 py-3 text-left transition ${
+                        isActive
+                          ? 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/50'
+                          : 'bg-stone-950/30 text-stone-300 hover:bg-stone-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.2em] text-stone-400">
+                        <span>{formatTimestamp(note.ts)}</span>
+                        <span>{note.body.length} chars</span>
+                      </div>
+                      <p className="mt-2 text-base font-medium text-stone-100">
+                        {note.title || 'Untitled note'}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-stone-400">
+                        {note.body || 'Empty note'}
+                      </p>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </nav>
-
         <div className="mt-auto flex flex-wrap gap-2 text-xs text-stone-400">
           <button
             type="button"
@@ -194,21 +258,26 @@ export default function Notes({ userId }: NotesProps) {
                 value={selectedNote.title}
                 onChange={(event) => updateNote({ title: event.target.value })}
                 className="w-full rounded-xl border border-stone-700/60 bg-stone-950/70 px-4 py-2 text-lg font-semibold text-stone-100 focus:border-amber-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+
                 placeholder="Title"
               />
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}
-                  className="rounded-xl border border-stone-700/60 px-3 py-2 text-xs uppercase tracking-wide text-stone-300 hover:border-amber-300 hover:text-amber-200"
+
+                  onClick={() => setMode('edit')}
+                  className={`surface-button secondary px-3 py-2 text-sm ${mode === 'edit' ? 'ring-amber-400/80' : ''}`}
                 >
-                  {mode === 'edit' ? 'Preview (beta)' : 'Edit'}
+                  Edit
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(selectedNote.id)}
-                  className="rounded-xl border border-red-800/60 px-3 py-2 text-xs uppercase tracking-wide text-red-300 hover:border-red-500/80 hover:text-red-200"
+                  onClick={() => setMode('preview')}
+                  className={`surface-button secondary px-3 py-2 text-sm ${mode === 'preview' ? 'ring-amber-400/80' : ''}`}
                 >
+                  Preview
+                </button>
+                <button type="button" onClick={() => handleDelete(selectedNote.id)} className="surface-button danger px-3 py-2 text-sm">
                   Delete
                 </button>
               </div>

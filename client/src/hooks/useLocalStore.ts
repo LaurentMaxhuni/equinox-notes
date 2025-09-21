@@ -12,7 +12,8 @@ export function useLocalStore<T>(key: string, initial: InitialValue<T>) {
   });
 
   const previousKey = useRef(key);
-  const debounceRef = useRef<number>();
+
+  const debounceRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (previousKey.current !== key) {
@@ -24,7 +25,10 @@ export function useLocalStore<T>(key: string, initial: InitialValue<T>) {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
-    window.clearTimeout(debounceRef.current);
+
+    if (typeof debounceRef.current === 'number') {
+      window.clearTimeout(debounceRef.current);
+    }
     debounceRef.current = window.setTimeout(() => {
       try {
         window.localStorage.setItem(key, JSON.stringify(state));
@@ -34,7 +38,9 @@ export function useLocalStore<T>(key: string, initial: InitialValue<T>) {
     }, 200);
 
     return () => {
-      window.clearTimeout(debounceRef.current);
+      if (typeof debounceRef.current === 'number') {
+        window.clearTimeout(debounceRef.current);
+      }
     };
   }, [key, state]);
 

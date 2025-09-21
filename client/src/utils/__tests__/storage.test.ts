@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { readJsonFromStorage, writeJsonToStorage } from '../storage';
 
-describe('storage helpers', () => {
-  it('reads previously stored JSON', () => {
-    writeJsonToStorage('test:key', { hello: 'world' });
-    expect(readJsonFromStorage('test:key', { hello: 'fallback' })).toEqual({ hello: 'world' });
+describe('storage utilities', () => {
+  it('writes and reads JSON payloads', () => {
+    writeJsonToStorage('equinox:test', { value: 42 });
+    expect(readJsonFromStorage('equinox:test', null)).toEqual({ value: 42 });
   });
 
-  it('returns fallback when JSON is invalid', () => {
-    window.localStorage.setItem('broken:key', '{not-valid');
-    expect(readJsonFromStorage('broken:key', 42)).toBe(42);
+  it('returns the fallback when JSON is invalid', () => {
+    window.localStorage.setItem('equinox:bad', 'not-json');
+    expect(readJsonFromStorage('equinox:bad', { value: 'fallback' })).toEqual({ value: 'fallback' });
   });
 });

@@ -1,14 +1,17 @@
-import { describe, expect, it } from 'vitest';
+
+import { describe, expect, it, vi } from 'vitest';
 import { randomGuestUsername, slugifyUsername } from '../slug';
 
 describe('slug utilities', () => {
-  it('sanitizes usernames with unsupported characters', () => {
-    expect(slugifyUsername('Autumn Breeze!')).toBe('autumn_breeze_');
-    expect(slugifyUsername('  Cozy*Writer  ')).toBe('cozy_writer');
+  it('slugifies usernames by trimming, replacing invalid characters, and lowercasing', () => {
+    expect(slugifyUsername('  Autumn Breeze ')).toBe('autumn_breeze');
+    expect(slugifyUsername('Acorns*&^!')).toBe('acorns____');
+    expect(slugifyUsername('a'.repeat(40))).toBe('a'.repeat(24));
   });
 
-  it('generates guest usernames with hex suffix', () => {
-    const username = randomGuestUsername();
-    expect(username).toMatch(/^guest-[0-9a-f]{4}$/);
+  it('generates random guest usernames with a hex suffix', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    expect(randomGuestUsername()).toBe('guest-7fff');
+    vi.restoreAllMocks();
   });
 });

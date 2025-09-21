@@ -1,121 +1,123 @@
-import type { NextFunction, Request, Response } from 'express';
-import express from 'express';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import { Router } from 'express';
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
+
+const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
+const TOKEN_AUDIENCE = 'equinox';
+const TOKEN_ISSUER = 'equinox-server';
+const TOKEN_EXPIRATION = '7d';
 
 const credentialsSchema = z.object({
   username: z
     .string()
-    .min(3)
-    .max(24)
-    .regex(/^[A-Za-z0-9_]+$/, 'Username must be alphanumeric or underscore'),
-  password: z.string().min(8).max(72),
+    .trim()
+    .min(3, 'Username must be at least 3 characters')
+    .max(24, 'Username must be at most 24 characters')
+    .regex(/^[A-Za-z0-9_]+$/, 'Only letters, numbers, and underscores allowed'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password must be at most 72 characters'),
 });
 
 type Credentials = z.infer<typeof credentialsSchema>;
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    username: string;
-  };
-  token?: string;
-}
+export type AuthUser = {
+  id: string;
+  username: string;
+};
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
+const toUser = (username: string): AuthUser => ({
+  id: crypto.createHash('sha256').update(username).digest('hex').slice(0, 16),
+  username,
+});
 
-const signToken = (user: { id: string; username: string }) => {
-  return jwt.sign(
-    { sub: user.id, username: user.username, aud: 'equinox', iss: 'equinox-server' },
+const signToken = (user: AuthUser) =>
+  jwt.sign(
+    {
+      sub: user.id,
+      username: user.username,
+      aud: TOKEN_AUDIENCE,
+      iss: TOKEN_ISSUER,
+    },
     JWT_SECRET,
-    { algorithm: 'HS256', expiresIn: '7d' },
+    { expiresIn: TOKEN_EXPIRATION, algorithm: 'HS256' },
   );
+
+const handleAuthSuccess = (user: AuthUser) => ({
+  token: signToken(user),
+  user,
+});
+
+const mapZodError = (error: z.ZodError<Credentials>) => {
+  const fieldErrors: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+    if (typeof field === 'string') {
+      if (!fieldErrors[field]) {
+        fieldErrors[field] = [];
+      }
+      fieldErrors[field]?.push(issue.message);
+    }
+  }
+  return fieldErrors;
 };
 
-const buildUser = (username: string) => {
-  const id = createHash('sha256').update(username).digest('hex').slice(0, 16);
-  return { id, username };
-};
-
-const respondWithAuth = (res: Response, user: { id: string; username: string }) => {
-  const token = signToken(user);
-  return res.json({ token, user });
-};
-
-export const requireAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const header = req.get('Authorization');
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing Authorization header' });
+const credentialsHandler: RequestHandler = (req, res) => {
+  const result = credentialsSchema.safeParse(req.body ?? {});
+  if (!result.success) {
+    res.status(400).json({ error: mapZodError(result.error) });
+    return;
   }
 
-  const token = header.slice('Bearer '.length).trim();
+  const user = toUser(result.data.username);
+  res.json(handleAuthSuccess(user));
+};
+
+export type AuthenticatedRequest = Request & { user?: AuthUser };
+
+export const requireAuth: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.header('authorization') ?? req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return;
+  }
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return;
+  }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const payload = jwt.verify(token, JWT_SECRET, {
       algorithms: ['HS256'],
-      audience: 'equinox',
-      issuer: 'equinox-server',
+      audience: TOKEN_AUDIENCE,
+      issuer: TOKEN_ISSUER,
     }) as jwt.JwtPayload;
 
-    if (!decoded || typeof decoded.sub !== 'string' || typeof decoded.username !== 'string') {
-      throw new Error('Invalid token payload');
+    const sub = payload.sub;
+    const username = payload.username;
+    if (typeof sub !== 'string' || typeof username !== 'string') {
+      throw new Error('Invalid payload');
     }
 
-    const user = {
-      id: decoded.sub,
-      username: decoded.username,
-    };
-
-    req.user = user;
-    req.token = token;
-    return next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    (req as AuthenticatedRequest).user = { id: sub, username };
+    next();
+  } catch (error) {
+    console.warn('Token verification failed:', error);
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 
-const handleCredentials = (body: unknown): Credentials => {
-  const parsed = credentialsSchema.safeParse(body);
-  if (!parsed.success) {
-    throw parsed.error;
-  }
-  return parsed.data;
+export const createAuthRouter = () => {
+  const router = Router();
+
+  router.post('/register', credentialsHandler);
+  router.post('/login', credentialsHandler);
+  router.get('/me', requireAuth, (req: Request, res: Response) => {
+    const authenticated = (req as AuthenticatedRequest).user;
+    res.json({ user: authenticated });
+  });
+
+  return router;
 };
-
-export const authRouter = express.Router();
-
-authRouter.post('/register', (req: Request, res: Response) => {
-  try {
-    const { username } = handleCredentials(req.body);
-    const user = buildUser(username);
-    return respondWithAuth(res, user);
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: err.flatten().fieldErrors });
-    }
-    return res.status(500).json({ error: 'Unable to register' });
-  }
-});
-
-authRouter.post('/login', (req: Request, res: Response) => {
-  try {
-    const { username } = handleCredentials(req.body);
-    const user = buildUser(username);
-    return respondWithAuth(res, user);
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: err.flatten().fieldErrors });
-    }
-    return res.status(500).json({ error: 'Unable to login' });
-  }
-});
-
-authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Unauthenticated' });
-  }
-  return res.json({ user: req.user });
-});
-
-export default authRouter;

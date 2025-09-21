@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import type { Mood, PartOfDay } from '../types';
+import Notes from './Notes';
+import Weather from './Weather';
+import { useAuthStore } from '../store/auth';
 import { clsx } from 'clsx';
 import Notes from './Notes';
 import Weather from './Weather';
@@ -13,6 +17,8 @@ type AppShellProps = {
 };
 
 const moodCopy: Record<Mood, string> = {
+  warm: 'Sun-kissed pages and amber reflections await.',
+  chilly: 'Sweater weather scribbles to warm the soul.',
   warm: 'Sun-kissed and ready to write',
   chilly: 'Sweater weather scribbles await',
 };
@@ -22,6 +28,8 @@ export default function AppShell({ mood, partOfDay, onMoodChange, onPartOfDayCha
   const logout = useAuthStore((state) => state.logout);
 
   const greeting = useMemo(() => {
+    const salutation = partOfDay === 'day' ? 'Good day' : 'Good evening';
+    return `${salutation}, ${user?.username ?? 'friend'}`;
     const base = partOfDay === 'day' ? 'Good day' : 'Good evening';
     return `${base}, ${user?.username ?? 'friend'}`;
   }, [partOfDay, user?.username]);
@@ -31,6 +39,16 @@ export default function AppShell({ mood, partOfDay, onMoodChange, onPartOfDayCha
   }
 
   return (
+    <div className="flex flex-1 flex-col gap-8">
+      <header className="glass-card flex flex-col gap-6 px-6 py-6 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.3em] text-amber-200/80">{greeting}</p>
+          <h1 className="font-display text-4xl text-amber-100 sm:text-5xl">Equinox Notes</h1>
+          <p className="text-sm text-stone-300">{moodCopy[mood]}</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Weather mood={mood} onMoodChange={onMoodChange} onPartOfDayChange={onPartOfDayChange} />
+          <button type="button" onClick={logout} className="surface-button secondary">
     <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-12 pt-8 sm:px-8">
       <header className="flex flex-col gap-4 rounded-2xl bg-stone-900/60 p-6 ring-1 ring-stone-700/60 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -52,7 +70,6 @@ export default function AppShell({ mood, partOfDay, onMoodChange, onPartOfDayCha
           </button>
         </div>
       </header>
-
       <main className="flex-1">
         <Notes userId={user.id} />
       </main>

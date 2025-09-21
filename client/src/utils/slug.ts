@@ -6,6 +6,8 @@ export const slugifyUsername = (value: string) => {
 };
 
 export const randomGuestUsername = () => {
-  const suffix = Math.random().toString(16).slice(2, 6);
+  const suffix = Math.floor(Math.random() * 0xffff)
+    .toString(16)
+    .padStart(4, '0');
   return `guest-${suffix}`;
 };

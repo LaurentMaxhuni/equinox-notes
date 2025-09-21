@@ -3,12 +3,13 @@ import { readJsonFromStorage, writeJsonToStorage } from '../utils/storage';
 
 const AUTH_KEY = 'equinox:auth';
 
-type User = {
+export type User = {
   id: string;
   username: string;
 };
 
-type StoredAuth = {
+
+export type StoredAuth = {
   user: User;
   token: string;
 };
@@ -22,21 +23,24 @@ type AuthState = {
   logout: () => void;
 };
 
-const readAuthFromStorage = (): StoredAuth | null => {
+const loadStoredAuth = (): StoredAuth | null => {
   return readJsonFromStorage<StoredAuth | null>(AUTH_KEY, null);
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: typeof window === 'undefined' ? null : readAuthFromStorage()?.user ?? null,
-  token: typeof window === 'undefined' ? null : readAuthFromStorage()?.token ?? null,
-  hydrated: typeof window === 'undefined',
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: null,
+  hydrated: false,
   hydrate: async () => {
+    if (get().hydrated) {
+      return;
+    }
     if (typeof window === 'undefined') {
       set({ hydrated: true });
       return;
     }
 
-    const stored = readAuthFromStorage();
+    const stored = loadStoredAuth();
     if (!stored) {
       set({ user: null, token: null, hydrated: true });
       return;
